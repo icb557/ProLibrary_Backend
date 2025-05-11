@@ -54,39 +54,42 @@ jobs:
           }
           
       - name: Create database and service user
-        env: 
-          DB_AND_USER_CREATION: |
-            -- Step 1: Create the database
-            CREATE DATABASE [librarySpring];
-            GO
-            
-            -- Step 2: Create the login with SQL Server authentication
-            USE [master];
-            GO
-            CREATE LOGIN [librarySpring] 
-            WITH PASSWORD = N'librarySpring', 
-                 CHECK_POLICY = OFF, 
-                 CHECK_EXPIRATION = OFF;
-            GO
-            
-            -- Step 3: Switch to the newly created database
-            USE [librarySpring];
-            GO
-            
-            -- Step 4: Create a user in the database associated with the login
-            CREATE USER [librarySpring] FOR LOGIN [librarySpring];
-            GO
-            
-            -- Step 5: Add the user to the db_owner role
-            ALTER ROLE [db_owner] ADD MEMBER [librarySpring];
-            GO
-            
-            -- Step 6: Add the user to the public role (optional, as it's assigned by default)
-            -- ALTER ROLE [public] ADD MEMBER [librarySpring];
-            -- GO
-
         run: |
-          sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -d master -Q $DB_AND_USER_CREATION
+          # Write the SQL script to a temporary file
+          $scriptPath = "$env:TEMP\create_db.sql"
+          @"
+          -- Step 1: Create the database
+          CREATE DATABASE [librarySpring];
+          GO
+      
+          -- Step 2: Create the login with SQL Server authentication
+          USE [master];
+          GO
+          CREATE LOGIN [librarySpring] 
+          WITH PASSWORD = N'librarySpring', 
+               CHECK_POLICY = OFF, 
+               CHECK_EXPIRATION = OFF;
+          GO
+      
+          -- Step 3: Switch to the newly created database
+          USE [librarySpring];
+          GO
+      
+          -- Step 4: Create a user in the database associated with the login
+          CREATE USER [librarySpring] FOR LOGIN [librarySpring];
+          GO
+      
+          -- Step 5: Add the user to the db_owner role
+          ALTER ROLE [db_owner] ADD MEMBER [librarySpring];
+          GO
+      
+          -- Step 6: Add the user to the public role (optional)
+          -- ALTER ROLE [public] ADD MEMBER [librarySpring];
+          -- GO
+          "@ | Out-File -FilePath $scriptPath -Encoding UTF8
+      
+          # Execute the SQL script
+          sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -i $scriptPath
 
       - name: Build with Maven
         run: mvn -B package -DskipTests
