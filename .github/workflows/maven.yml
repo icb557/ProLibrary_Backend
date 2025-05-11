@@ -17,7 +17,7 @@ on:
 jobs:
   build-and-test:
     name: Build and Test
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -40,15 +40,18 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          for i in {1..30}; do
-            if sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -Q "SELECT 1" &> /dev/null; then
-              echo "SQL Server is ready."
+          $maxRetries = 30
+          $retryInterval = 5
+          for ($i = 1; $i -le $maxRetries; $i++) {
+            try {
+              sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -Q "SELECT 1"
+              Write-Host "SQL Server is ready."
               break
-            else
-              echo "Waiting for SQL Server..."
-              sleep 5
-            fi
-          done
+            } catch {
+              Write-Host "Waiting for SQL Server... Attempt $i of $maxRetries."
+              Start-Sleep -Seconds $retryInterval
+            }
+          }
           
       - name: Create database and service user
         run: |
