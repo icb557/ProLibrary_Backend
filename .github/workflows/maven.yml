@@ -18,10 +18,6 @@ jobs:
   build-and-test:
     name: Build and Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -44,22 +40,19 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          $maxRetries = 30
-          $retryInterval = 5
-          for ($i = 1; $i -le $maxRetries; $i++) {
-            try {
-              sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -Q "SELECT 1"
-              Write-Host "SQL Server is ready."
+          for i in {1..30}; do
+            if sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -Q "SELECT 1" &> /dev/null; then
+              echo "SQL Server is ready."
               break
-            } catch {
-              Write-Host "Waiting for SQL Server... Attempt $i of $maxRetries."
-              Start-Sleep -Seconds $retryInterval
-            }
-          }
-
+            else
+              echo "Waiting for SQL Server..."
+              sleep 5
+            fi
+          done
+          
       - name: Create database and service user
         run: |
-          sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -d master -Q ${{ env.DB_AND_USER_CREATION }}
+          sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -d master -Q $DB_AND_USER_CREATION
 
       - name: Build with Maven
         run: mvn -B package -DskipTests
