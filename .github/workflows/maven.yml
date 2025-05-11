@@ -16,8 +16,8 @@ on:
 
 jobs:
   build-and-test:
-    name: Build and Test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Build and Test
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
