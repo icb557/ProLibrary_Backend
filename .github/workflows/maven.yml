@@ -30,15 +30,15 @@ jobs:
           cache: maven
 
       - name: Install SQL Server
-        uses: potatoqualitee/mssqlsuite@v1.8
+        uses: Particular/install-sql-server-action@v1.2.0
         with:
+          connection-string-env-var: jdbc:sqlserver://localhost;instanceName=MSSQLSERVER;databaseName=librarySpring;encrypt=true;trustServerCertificate=true
           install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
-          version: 2019
-          sa-password: ${{ secrets.SA_DB_PASSWORD }}
-          show-log: true
-          collation: Latin1_General_BIN
+          sqlserver-version: 2022
+          
 
       - name: Wait for SQL Server to be ready
+        shell: pwsh
         run: |
           $maxRetries = 30
           $retryInterval = 5
@@ -54,6 +54,7 @@ jobs:
           }
           
       - name: Create database and service user
+        shell: pwsh
         run: |
           # --- Write the SQL script to a temporary file ---
           $scriptPath = "$env:TEMP\create_db.sql"
@@ -97,9 +98,10 @@ jobs:
           "@ | Out-File -FilePath $scriptPath -Encoding UTF8
 
           # --- Execute the SQL script ---
-          sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -i $scriptPath
+          sqlcmd -i $scriptPath -d "master"
 
       - name: Enable TCP/IP connections
+        shell: pwsh
         run: |
           # Get access to SqlWmiManagement DLL on the machine with SQL
           [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SqlWmiManagement')
