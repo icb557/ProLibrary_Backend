@@ -55,7 +55,7 @@ jobs:
           
       - name: Create database and service user
         run: |
-          # Write the SQL script to a temporary file
+          # --- Write the SQL script to a temporary file ---
           $scriptPath = "$env:TEMP\create_db.sql"
           @"
           -- Step 1: Create the database
@@ -87,8 +87,40 @@ jobs:
           -- ALTER ROLE [public] ADD MEMBER [librarySpring];
           -- GO
           "@ | Out-File -FilePath $scriptPath -Encoding UTF8
-      
-          # Execute the SQL script
+
+          # --- Enable SQL Server Authentication ---
+          # Load the SMO assembly
+          [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
+          
+          # Connect to the SQL Server instance
+          $serverInstance = "localhost"  # Replace with your server name if different
+          $server = New-Object Microsoft.SqlServer.Management.Smo.Server $serverInstance
+          
+          # Set authentication mode to Mixed
+          $server.Settings.LoginMode = [Microsoft.SqlServer.Management.Smo.ServerLoginMode]::Mixed
+          $server.Alter()
+          
+          # Restart the SQL Server service to apply changes
+          Restart-Service -Name 'MSSQLSERVER' -Force
+
+          # --- Enable TCP/IP protocol ---
+          # Load the SQL WMI Management assembly
+          [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SqlWmiManagement") | Out-Null
+          
+          # Connect to the WMI provider
+          $wmi = New-Object ('Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer') 'localhost'
+          
+          # Access the TCP/IP protocol settings for the default instance
+          $tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
+          
+          # Enable TCP/IP
+          $tcp.IsEnabled = $true
+          $tcp.Alter()
+          
+          # Restart the SQL Server service to apply changes
+          Restart-Service -Name 'MSSQLSERVER' -Force
+
+          # --- Execute the SQL script ---
           sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -i $scriptPath
 
       - name: Build with Maven
