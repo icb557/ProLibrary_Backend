@@ -33,7 +33,6 @@ jobs:
         uses: Particular/install-sql-server-action@v1.2.0
         with:
           connection-string-env-var: jdbc:sqlserver://localhost;instanceName=MSSQLSERVER;databaseName=librarySpring;encrypt=true;trustServerCertificate=true
-          install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
           sqlserver-version: 2022
           
 
@@ -44,7 +43,7 @@ jobs:
           $retryInterval = 5
           for ($i = 1; $i -le $maxRetries; $i++) {
             try {
-              sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -Q "SELECT 1"
+              sqlcmd -Q "SELECT 1" -d "master"
               Write-Host "SQL Server is ready."
               break
             } catch {
