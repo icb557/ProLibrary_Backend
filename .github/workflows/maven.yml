@@ -86,42 +86,36 @@ jobs:
           -- Step 6: Add the user to the public role (optional)
           -- ALTER ROLE [public] ADD MEMBER [librarySpring];
           -- GO
+
+          -- Step 7: Enable SQL Server Authentication
+          EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE',
+              N'Software\Microsoft\MSSQLServer\MSSQLServer',
+              N'LoginMode', REG_DWORD, 2;
+          GO
+
+          
           "@ | Out-File -FilePath $scriptPath -Encoding UTF8
-
-          # --- Enable SQL Server Authentication ---
-          # Load the SMO assembly
-          [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.Smo") | Out-Null
-          
-          # Connect to the SQL Server instance
-          $serverInstance = "localhost"  # Replace with your server name if different
-          $server = New-Object Microsoft.SqlServer.Management.Smo.Server $serverInstance
-          
-          # Set authentication mode to Mixed
-          $server.Settings.LoginMode = [Microsoft.SqlServer.Management.Smo.ServerLoginMode]::Mixed
-          $server.Alter()
-          
-          # Restart the SQL Server service to apply changes
-          Restart-Service -Name 'MSSQLSERVER' -Force
-
-          # --- Enable TCP/IP protocol ---
-          # Load the SQL WMI Management assembly
-          [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.SqlServer.SqlWmiManagement") | Out-Null
-          
-          # Connect to the WMI provider
-          $wmi = New-Object ('Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer') 'localhost'
-          
-          # Access the TCP/IP protocol settings for the default instance
-          $tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
-          
-          # Enable TCP/IP
-          $tcp.IsEnabled = $true
-          $tcp.Alter()
-          
-          # Restart the SQL Server service to apply changes
-          Restart-Service -Name 'MSSQLSERVER' -Force
 
           # --- Execute the SQL script ---
           sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -i $scriptPath
+
+      - name: Enable TCP/IP connections
+        run: |
+          # Get access to SqlWmiManagement DLL on the machine with SQL
+          [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SqlWmiManagement')
+          
+          # Instantiate a ManagedComputer object that exposes primitives to control the
+          # Installation of SQL Server on this machine.
+          
+          $wmi = New-Object 'Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer' localhost
+          
+          # Enable the TCP protocol on the default instance.
+          
+          $tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
+          $tcp.IsEnabled = $true
+          $tcp.Alter()
+
+          Restart-Service -Name MSSQLSERVER -Force
 
       - name: Build with Maven
         run: mvn -B package -DskipTests
