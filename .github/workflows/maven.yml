@@ -99,24 +99,24 @@ jobs:
           # --- Execute the SQL script ---
           sqlcmd -i $scriptPath -d "master"
 
-      - name: Enable TCP/IP connections
-        shell: pwsh
-        run: |
-          # Get access to SqlWmiManagement DLL on the machine with SQL
-          [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SqlWmiManagement')
+      # - name: Enable TCP/IP connections
+      #   shell: pwsh
+      #   run: |
+      #     # Get access to SqlWmiManagement DLL on the machine with SQL
+      #     [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SqlWmiManagement')
           
-          # Instantiate a ManagedComputer object that exposes primitives to control the
-          # Installation of SQL Server on this machine.
+      #     # Instantiate a ManagedComputer object that exposes primitives to control the
+      #     # Installation of SQL Server on this machine.
           
-          $wmi = New-Object 'Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer' localhost
+      #     $wmi = New-Object 'Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer' localhost
           
-          # Enable the TCP protocol on the default instance.
+      #     # Enable the TCP protocol on the default instance.
           
-          $tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
-          $tcp.IsEnabled = $true
-          $tcp.Alter()
+      #     $tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
+      #     $tcp.IsEnabled = $true
+      #     $tcp.Alter()
 
-          Restart-Service -Name MSSQLSERVER -Force
+      #     Restart-Service -Name MSSQLSERVER -Force
 
       - name: Build with Maven
         run: mvn -B package -DskipTests
