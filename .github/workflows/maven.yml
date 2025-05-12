@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Java CI with Maven
+name: Java CI with Maven and SQL Server
 
 on:
   push:
@@ -14,28 +14,89 @@ on:
   pull_request:
     branches: [ "main" ]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: Build and Test
+    runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK 23
-      uses: actions/setup-java@v4
-      with:
-        java-version: '23'
-        distribution: 'oracle'
-        cache: maven
-    - name: Build with Maven
-      run: mvn -B package -DskipTests
-    - name: Run Unit Tests
-      run: mvn -B test
+      - uses: actions/checkout@v4
 
-    # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
-    - name: Update dependency graph
-      uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
+      - name: Set up JDK 23
+        uses: actions/setup-java@v4
+        with:
+          java-version: '23'
+          distribution: 'oracle'
+          cache: maven
+
+      - name: Install SQL Server
+        uses: potatoqualitee/mssqlsuite@v1.8
+        with:
+          install: sqlengine, sqlclient, sqlpackage, localdb, fulltext
+          version: 2019
+          sa-password: ${{ secrets.SA_DB_PASSWORD }}
+          show-log: true
+          collation: Latin1_General_BIN
+
+      - name: Wait for SQL Server to be ready
+        run: |
+          $maxRetries = 30
+          $retryInterval = 5
+          for ($i = 1; $i -le $maxRetries; $i++) {
+            try {
+              sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -Q "SELECT 1"
+              Write-Host "SQL Server is ready."
+              break
+            } catch {
+              Write-Host "Waiting for SQL Server... Attempt $i of $maxRetries."
+              Start-Sleep -Seconds $retryInterval
+            }
+          }
+          
+      - name: Create database and service user
+        run: |
+          # Write the SQL script to a temporary file
+          $scriptPath = "$env:TEMP\create_db.sql"
+          @"
+          -- Step 1: Create the database
+          CREATE DATABASE [librarySpring];
+          GO
+      
+          -- Step 2: Create the login with SQL Server authentication
+          USE [master];
+          GO
+          CREATE LOGIN [librarySpring] 
+          WITH PASSWORD = N'librarySpring', 
+               CHECK_POLICY = OFF, 
+               CHECK_EXPIRATION = OFF;
+          GO
+      
+          -- Step 3: Switch to the newly created database
+          USE [librarySpring];
+          GO
+      
+          -- Step 4: Create a user in the database associated with the login
+          CREATE USER [librarySpring] FOR LOGIN [librarySpring];
+          GO
+      
+          -- Step 5: Add the user to the db_owner role
+          ALTER ROLE [db_owner] ADD MEMBER [librarySpring];
+          GO
+      
+          -- Step 6: Add the user to the public role (optional)
+          -- ALTER ROLE [public] ADD MEMBER [librarySpring];
+          -- GO
+          "@ | Out-File -FilePath $scriptPath -Encoding UTF8
+      
+          # Execute the SQL script
+          sqlcmd -S localhost -U sa -P ${{ secrets.SA_DB_PASSWORD }} -i $scriptPath
+
+      - name: Build with Maven
+        run: mvn -B package -DskipTests
+
+      - name: Run Unit Tests
+        run: mvn -B test
+
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@v4
+
