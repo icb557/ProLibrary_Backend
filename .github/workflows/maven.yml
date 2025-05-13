@@ -30,6 +30,9 @@ jobs:
         - 1433:1433
 
     steps:
+      - name: Check SQL Server logs
+        run: docker logs $(docker ps -q --filter "name=mssql")
+
       # - name: Install SQL Server
       #   uses: Particular/install-sql-server-action@v1.2.0
       #   with:
