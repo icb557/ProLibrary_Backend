@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Check SQL Server logs
-        run: docker ps
+        run: docker logs $(docker ps --filter "ancestor=isac7/sqlserver:v1" --format "{{.ID}}")
 
       # - name: Install SQL Server
       #   uses: Particular/install-sql-server-action@v1.2.0
