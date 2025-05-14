@@ -12,7 +12,7 @@ public class LibrarySpringApplication {
 
 	public static void main(String[] args) {
 
-		String url = "jdbc:sqlserver://localhost;databaseName=librarySpring;trustServerCertificate=true";
+		String url = "jdbc:sqlserver://localhost;instanceName=MSSQLSERVER01;databaseName=librarySpring;encrypt=true;trustServerCertificate=true";
 		String username = "librarySpring";
 		String password = "librarySpring";
 
