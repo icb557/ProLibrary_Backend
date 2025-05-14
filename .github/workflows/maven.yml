@@ -39,6 +39,9 @@ jobs:
       - name: Run Unit Tests
         run: mvn -B test
 
+      - name: Make mvnw script executable
+        run: chmod +x ./mvnw
+
       - name: Update dependency graph
         uses: advanced-security/maven-dependency-submission-action@v4
     
