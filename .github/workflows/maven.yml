@@ -14,114 +14,16 @@ on:
   pull_request:
     branches: [ "main" ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     name: Build and Test
     runs-on: ubuntu-latest
     
-    services: 
-      mssql:
-        image: isac7/sqlserver:v1
-        env:
-          MSSQL_SA_PASSWORD: 'yourStrong(!)Password'
-          ACCEPT_EULA: 'Y'
-          MSSQL_PID: 'Developer'
-        ports:
-        - 1433:1433
-
     steps:
-      - name: Check SQL Server logs
-        run: docker logs $(docker ps --filter "ancestor=isac7/sqlserver:v1" --format "{{.ID}}")
-
-      # - name: Install SQL Server
-      #   uses: Particular/install-sql-server-action@v1.2.0
-      #   with:
-      #     connection-string-env-var: jdbc:sqlserver://localhost;instanceName=MSSQLSERVER;databaseName=librarySpring;encrypt=true;trustServerCertificate=true
-      #     sqlserver-version: 2022
-          
-
-      # - name: Wait for SQL Server to be ready
-      #   shell: pwsh
-      #   run: |
-      #     $maxRetries = 30
-      #     $retryInterval = 5
-      #     for ($i = 1; $i -le $maxRetries; $i++) {
-      #       try {
-      #         sqlcmd -Q "SELECT 1" -d "master"
-      #         Write-Host "SQL Server is ready."
-      #         break
-      #       } catch {
-      #         Write-Host "Waiting for SQL Server... Attempt $i of $maxRetries."
-      #         Start-Sleep -Seconds $retryInterval
-      #       }
-      #     }
-          
-      # - name: Create database and service user
-      #   shell: pwsh
-      #   run: |
-      #     # --- Write the SQL script to a temporary file ---
-      #     $scriptPath = "$env:TEMP\create_db.sql"
-      #     @"
-      #     -- Step 1: Create the database
-      #     CREATE DATABASE [librarySpring];
-      #     GO
-      
-      #     -- Step 2: Create the login with SQL Server authentication
-      #     USE [master];
-      #     GO
-      #     CREATE LOGIN [librarySpring] 
-      #     WITH PASSWORD = N'librarySpring', 
-      #          CHECK_POLICY = OFF, 
-      #          CHECK_EXPIRATION = OFF;
-      #     GO
-      
-      #     -- Step 3: Switch to the newly created database
-      #     USE [librarySpring];
-      #     GO
-      
-      #     -- Step 4: Create a user in the database associated with the login
-      #     CREATE USER [librarySpring] FOR LOGIN [librarySpring];
-      #     GO
-      
-      #     -- Step 5: Add the user to the db_owner role
-      #     ALTER ROLE [db_owner] ADD MEMBER [librarySpring];
-      #     GO
-      
-      #     -- Step 6: Add the user to the public role (optional)
-      #     -- ALTER ROLE [public] ADD MEMBER [librarySpring];
-      #     -- GO
-
-      #     -- Step 7: Enable SQL Server Authentication
-      #     EXEC xp_instance_regwrite N'HKEY_LOCAL_MACHINE',
-      #         N'Software\Microsoft\MSSQLServer\MSSQLServer',
-      #         N'LoginMode', REG_DWORD, 2;
-      #     GO
-
-          
-      #     "@ | Out-File -FilePath $scriptPath -Encoding UTF8
-
-      #     # --- Execute the SQL script ---
-      #     sqlcmd -i $scriptPath -d "master"
-
-      # - name: Enable TCP/IP connections
-      #   shell: pwsh
-      #   run: |
-      #     # Get access to SqlWmiManagement DLL on the machine with SQL
-      #     [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SqlWmiManagement')
-          
-      #     # Instantiate a ManagedComputer object that exposes primitives to control the
-      #     # Installation of SQL Server on this machine.
-          
-      #     $wmi = New-Object 'Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer' localhost
-          
-      #     # Enable the TCP protocol on the default instance.
-          
-      #     $tcp = $wmi.ServerInstances['MSSQLSERVER'].ServerProtocols['Tcp']
-      #     $tcp.IsEnabled = $true
-      #     $tcp.Alter()
-
-      #     Restart-Service -Name MSSQLSERVER -Force
-
       - uses: actions/checkout@v4
 
       - name: Set up JDK 23
@@ -139,4 +41,6 @@ jobs:
 
       - name: Update dependency graph
         uses: advanced-security/maven-dependency-submission-action@v4
+    
+  
 
